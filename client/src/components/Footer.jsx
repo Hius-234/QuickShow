@@ -12,7 +12,7 @@ const Footer = () => {
                     </p>
                     <div className="flex items-center gap-2 mt-4">
                         <img src={assets.googlePlay} alt="google play" className="h-9 w-auto" />
-                        <img src={assets.appleStore} alt="app store" className="h-9 w-auto" />
+                        <img src={assets.appStore} alt="app store" className="h-9 w-auto" />
                     </div>
                 </div>
                 <div className="flex-1 flex items-start md:justify-end gap-20 md:gap-40">
