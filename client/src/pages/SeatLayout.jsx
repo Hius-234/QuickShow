@@ -18,15 +18,7 @@ const SeatLayout = () => {
 
     const navigate = useNavigate();
 
-    const getShow = async () =>{
-        const show = dummyShowsData.find(show => show._id === id)
-        if(show){
-            setShow({
-                movie: show,
-                dateTime: dummyDateTimeData
-            })
-        }
-    }
+    
 
     const handleSeatClick = (seatId) => {
         if (!selectedTime) {
@@ -39,6 +31,7 @@ const SeatLayout = () => {
     }    
 
     const renderSeats = (row, count = 9) => {
+        return(
         <div key={row} className='flex gap-2 mt-2'>
             <div className='flex flex-wrap items-center justify-center gap-2'>
                 {Array.from({ length: count }, (_, i) => {
@@ -51,11 +44,21 @@ const SeatLayout = () => {
                 })}
             </div>
         </div>
+        )
     }
 
     useEffect(()=>{
+            const getShow = async () =>{
+            const show = dummyShowsData.find(show => show._id === id)
+            if(show){
+                setShow({
+                    movie: show,
+                    dateTime: dummyDateTimeData
+                })
+            }
+        }
         getShow()
-    },[])
+    },[id])
 
     return show ? (
         <div className='flex flex-col md:flex-row px-6 md:px-16 lg:px-40 py-30 md:pt-50'>
