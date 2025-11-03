@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { dummyBookingData } from '../../assets/assets';
 import Loading from '../../components/Loading';
 import dateFormat from '../../lib/dateFormat';
+import Title from './Title';
 
 const ListBookings = () => {
     const currency = import.meta.env.VITE_CURRENCY
