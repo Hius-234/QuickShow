@@ -43,7 +43,7 @@ export const createBooking = async (req, res) => {
             amount: selectedSeats.length * showData.showPrice
         })
 
-        selectedSeats.map(()=>{
+        selectedSeats.map((seat)=>{
             showData.occupiedSeats[seat] = userId;
         })
 

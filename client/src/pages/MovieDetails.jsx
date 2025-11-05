@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { dummyDateTimeData, dummyShowsData } from '../assets/assets';
 import BlurCircle from '../components/BlurCircle';
 import { Heart, PlayCircleIcon, StarIcon } from 'lucide-react';
 import timeFormat from '../lib/timeFormat';
@@ -16,7 +15,7 @@ const MovieDetails = () => {
     const {id} = useParams()
     const [show, setShow] = useState(null)
 
-    const {shows, axios, getToken, user, fetchFavoriteMovies, favoriteMovies, img_base_url} = useAppContext()
+    const {shows, axios, getToken, user, fetchFavoriteMovies, favoriteMovies, image_base_url} = useAppContext()
 
 
     const getShow = async () => {
@@ -54,7 +53,7 @@ const MovieDetails = () => {
     return show ? (
         <div className='px-6 md:px-16 lg:px-40 pt030 md:pt-50'>
             <div className='flex flex-col md:flex-row gap-8 max-w-6xl mx-auto'>
-                <img src={img_base_url + show.movie.poster_path} alt="" className='max-md:mx-auto rounded-xl h-104 max-w-70 object-cover' />
+                <img src={image_base_url + show.movie.poster_path} alt="" className='max-md:mx-auto rounded-xl h-104 max-w-70 object-cover' />
                 <div className='relative flex flex-col gap-3'>
                     <BlurCircle top="-100px" left="-100px"/>
                     <p className='text-primary'>English</p>
@@ -88,7 +87,7 @@ const MovieDetails = () => {
             <div className='overflow-x-auto no-scrollbar mt-8 pb-4'>
                 <div className='flex items-center gap-4 w-max px-4'>{show.movie.casts.slice(0,12).map((cast, index)=>(
                     <div key={index} className='flex flex-col items-center text-center'>
-                        <img src={img_base_url + cast.profile_path} alt="" className='rounded-full h-20 md:h-20 aspect-square object-cover'/>
+                        <img src={image_base_url + cast.profile_path} alt="" className='rounded-full h-20 md:h-20 aspect-square object-cover'/>
                         <p className='font-medium text-xs mt-3'>{cast.name}</p>
                     </div>
                 ))}
