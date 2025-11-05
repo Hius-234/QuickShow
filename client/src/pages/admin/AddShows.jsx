@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import { dummyShowsData } from '../../assets/assets';
 import Loading from '../../components/Loading';
 import { StarIcon, CheckIcon, DeleteIcon } from 'lucide-react';
 import { kConverter } from '../../lib/kConverter';
