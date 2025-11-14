@@ -1,6 +1,7 @@
 import Booking from "../models/Booking.js";
 import Show from "../models/Show.js";
 import User from "../models/User.js";
+import Movie from "../models/Movie.js"; // Import Movie model
 
 // API to check if user is admin
 export const isAdmin = async (req, res) => {
@@ -36,9 +37,10 @@ export const getAllShows = async (req, res) => {
         const shows = await Show.find({showDateTime: {$gte: new Date()}}).populate('movie').sort({ showDateTime: 1})
         res.json({success: true, shows})
 
-    } catch (error) {}
+    } catch (error) {
         console.error(error);
         res.json({success: false, message: error.message})
+    }
 }
 
 // API to get all bookings
@@ -53,5 +55,30 @@ export const getAllBookings = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.json({success: false, message: error.message})
+    }
+}
+
+
+// HÀM MỚI: API ĐỂ RESET DATABASE
+export const resetDatabase = async (req, res) => {
+    try {
+        // Xóa theo đúng thứ tự để không vi phạm ràng buộc
+        
+        // 1. Xóa tất cả Bookings (Vé)
+        await Booking.deleteMany({});
+
+        // 2. Xóa tất cả Shows (Lịch chiếu)
+        await Show.deleteMany({});
+
+        // 3. Xóa tất cả Movies (Phim)
+        await Movie.deleteMany({});
+
+        // Collection 'User' được giữ nguyên vì nó đồng bộ từ Clerk
+
+        res.json({ success: true, message: "Đã xóa toàn bộ Phim, Lịch chiếu và Vé." });
+
+    } catch (error) {
+        console.error("Lỗi khi reset database:", error);
+        res.json({ success: false, message: "Lỗi máy chủ khi reset." });
     }
 }

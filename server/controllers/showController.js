@@ -18,6 +18,32 @@ export const getNowPlayingMovies = async (req, res) => {
     }
 }
 
+// Hàm trợ giúp để lấy và tìm trailerKey
+const getTrailerKeyFromTMDB = async (movieId) => {
+    try {
+        const { data } = await axios.get(`https://api.themoviedb.org/3/movie/${movieId}/videos`, {
+            headers: {Authorization : `Bearer ${process.env.TMDB_API_KEY}`} 
+        });
+
+        const movieVideosData = data.results;
+        let trailerKey = null;
+
+        const officialTrailer = movieVideosData.find(video => video.type === 'Trailer' && video.site === 'YouTube');
+        if (officialTrailer) {
+            trailerKey = officialTrailer.key;
+        } else {
+            const anyYouTubeVideo = movieVideosData.find(video => video.site === 'YouTube');
+            if (anyYouTubeVideo) {
+                trailerKey = anyYouTubeVideo.key;
+            }
+        }
+        return trailerKey;
+    } catch (error) {
+        console.error("Lỗi khi lấy trailer key:", error.message);
+        return null;
+    }
+}
+
 // API to add a new show to the database
 export const addShow = async (req, res) => {
     try {
@@ -26,18 +52,22 @@ export const addShow = async (req, res) => {
         let movie = await Movie.findById(movieId)
 
         if(!movie){
-            // Fetch movie details and credits from TMDB API
-            const [movieDetailsResponse, movieCreditsResponse] = await Promise.all([axios.get(`https://api.themoviedb.org/3/movie/${movieId}`, 
-                {headers: {Authorization : `Bearer ${process.env.TMDB_API_KEY}`}
+            // --- KHI PHIM CHƯA TỒN TẠI ---
+            // Fetch movie details, credits, AND VIDEOS from TMDB API
+            const [movieDetailsResponse, movieCreditsResponse] = await Promise.all([
+                axios.get(`https://api.themoviedb.org/3/movie/${movieId}`, {
+                    headers: {Authorization : `Bearer ${process.env.TMDB_API_KEY}`}
                 }),
-
-                axios.get(`https://api.themoviedb.org/3/movie/${movieId}/credits`, 
-                    {headers: {Authorization : `Bearer ${process.env.TMDB_API_KEY}`} })
-                
+                axios.get(`https://api.themoviedb.org/3/movie/${movieId}/credits`, {
+                    headers: {Authorization : `Bearer ${process.env.TMDB_API_KEY}`} 
+                })
             ]);
 
             const movieApiData = movieDetailsResponse.data;
             const movieCreditsData = movieCreditsResponse.data;
+            
+            // Lấy trailerKey
+            const trailerKey = await getTrailerKeyFromTMDB(movieId);
 
             const movieDetails = {
                 _id: movieId,
@@ -51,13 +81,23 @@ export const addShow = async (req, res) => {
                 genres: movieApiData.genres,
                 casts: movieCreditsData.cast,
                 vote_average: movieApiData.vote_average,
-                runtime: movieApiData.runtime,            
+                runtime: movieApiData.runtime,
+                trailerKey: trailerKey // Lưu trailerKey
             }
 
-            // Add movie to the database
             movie = await Movie.create(movieDetails);
+        } else if (!movie.trailerKey) {
+            // --- SỬA LỖI: KHI PHIM ĐÃ TỒN TẠI NHƯNG THIẾU TRAILERKEY ---
+            console.log(`Phim "${movie.title}" đã tồn tại nhưng thiếu trailerKey. Đang lấy trailer...`);
+            const trailerKey = await getTrailerKeyFromTMDB(movieId);
+            if (trailerKey) {
+                movie.trailerKey = trailerKey;
+                await movie.save();
+                console.log(`Đã cập nhật trailerKey cho phim "${movie.title}".`);
+            }
         }
 
+        // --- Tạo các suất chiếu (Show) ---
         const showsToCreate = [];
         showsInput.forEach(show => {
             const showDate = show.date;
@@ -95,10 +135,17 @@ export const getShows = async (req, res) => {
     try {
         const shows = await Show.find({showDateTime: {$gte: new Date()}}).populate('movie').sort({showDateTime: 1});
         
-        // Filter unique shows
-        const uniqueShows = new Set(shows.map(show => show.movie))
+        // Lấy danh sách phim duy nhất từ các suất chiếu
+        const uniqueMoviesMap = new Map();
+        shows.forEach(show => {
+            if (show.movie) { // Đảm bảo movie tồn tại
+                uniqueMoviesMap.set(show.movie._id, show.movie);
+            }
+        });
 
-        res.json({success: true, shows: Array.from(uniqueShows)})
+        const uniqueMovies = Array.from(uniqueMoviesMap.values());
+
+        res.json({success: true, shows: uniqueMovies})
     } catch (error) {
         console.error(error);
         res.json({success: false, message: error.message});
