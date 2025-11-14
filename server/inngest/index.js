@@ -50,28 +50,35 @@ const syncUserUpdation = inngest.createFunction(
     }
 )
 
-// Inngest Function to cancel booking and release seats of show after 10 minutes of booking created if payment is not made
+// InGA: Inngest Function to cancel booking and release seats of show after 31 minutes of booking created if payment is not made
 const releaseSeatsAndDeleteBooking = inngest.createFunction(
     {id: 'release-seats-delete-booking'},
     {event: "app/checkpayment"},
     async ({ event, step })=>{
-        const tenMinutesLater = new Date(Date.now() + 10 * 60 * 1000);
-        await step.sleepUntil( 'wait-for-10-minutes', tenMinutesLater) ;
+        // SỬA LỖI: Chờ 31 phút (thay vì 10) để đồng bộ với 30 phút hết hạn của Stripe
+        const thirtyOneMinutesLater = new Date(Date.now() + 31 * 60 * 1000); // 31 phút
+        await step.sleepUntil( 'wait-for-31-minutes', thirtyOneMinutesLater) ;
 
         await step.run( 'check-payment-status' , async ()=>{
             const bookingId = event.data.bookingId;
             const booking = await Booking.findById(bookingId)
 
-            // If payment is not made, release seats and delete booking
-            if(!booking.isPaid){
+            // Nếu booking vẫn còn (chưa bị webhook xóa) VÀ chưa thanh toán
+            if(booking && !booking.isPaid){
                 const show = await Show.findById(booking.show) ;
-                booking.bookedSeats.forEach((seat)=>{
-                    delete show.occupiedSeats[seat]
-                });
-                show.markModified('occupiedSeats')
-                await show.save()
+                
+                // Chỉ giải phóng ghế nếu show còn tồn tại
+                if (show && show.occupiedSeats) {
+                    booking.bookedSeats.forEach((seat)=>{
+                        delete show.occupiedSeats[seat]
+                    });
+                    show.markModified('occupiedSeats')
+                    await show.save()
+                }
+                // Xóa vé
                 await Booking.findByIdAndDelete(booking._id)
             }
+            // Nếu booking.isPaid = true, không làm gì cả.
         })
     }
 )
@@ -87,6 +94,13 @@ const sendBookingConfirmationEmail = inngest.createFunction(
     path: 'show',
     populate: {path: "movie", model: "Movie"}
     }).populate('user');
+
+    // Đảm bảo booking và các thông tin lồng nhau tồn tại
+    if (!booking || !booking.user || !booking.show || !booking.show.movie) {
+        console.error("Không thể gửi email: Thiếu thông tin booking.", bookingId);
+        return;
+    }
+
 
     await sendEmail({
         to: booking.user.email,
@@ -114,30 +128,32 @@ const sendShowReminders = inngest.createFunction(
     async ({ step })=>{
         const now = new Date ();
         const in8Hours = new Date(now.getTime() + 8 * 60 * 60 * 1000);
-        const windowStart = new Date(in8Hours.getTime() - 10 * 60 * 1000);
+        const windowStart = new Date(in8Hours.getTime() - 10 * 60 * 1000); // Cửa sổ 10 phút
 
         // Prepare reminder tasks
         const reminderTasks = await step.run( "prepare-reminder-tasks", async ()=>{
             const shows = await Show.find({
-                showTime: { $gte: windowStart, $1te: in8Hours },
+                // Sửa: $lte (less than or equal) thay vì $1te
+                showDateTime: { $gte: windowStart, $lte: in8Hours },
             }).populate('movie');
 
             const tasks = [];
 
             for (const show of shows ) {
-                if (!show.movie || !show.occupiedSeats) continue;
+                if (!show.movie || !show.occupiedSeats || Object.keys(show.occupiedSeats).length === 0) continue;
 
                 const userIds = [...new Set (Object.values(show.occupiedSeats))];
                 if(userIds.length === 0) continue;
 
-                const users = await User.find( {_id: {}}).select("name email");
+                // Sửa: $in: userIds
+                const users = await User.find( {_id: {$in: userIds}}).select("name email");
 
                 for(const user of users) {
                     tasks.push({
                         userEmail: user.email,
                         userName: user.name,
                         movieTitle: show.movie.title,
-                        showTime: show.showTime,
+                        showTime: show.showDateTime, // Sửa: show.showDateTime (thay vì show.showTime)
                     })
                 }
             }
