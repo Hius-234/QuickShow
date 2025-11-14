@@ -24,6 +24,14 @@ app.use(express.json())
 app.use(cors())
 app.use(clerkMiddleware())
 
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('Surrogate-Control', 'no-store');
+  next();
+});
+
 // API Routes
 app.get('/', (req, res)=> res.send('Server is Live!'))
 app.use( '/api/inngest', serve({ client: inngest, functions }))
